@@ -1,4 +1,4 @@
-# novanote
+# NovaNote
 
 A new Flutter project.
 
