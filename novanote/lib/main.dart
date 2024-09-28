@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:novanote/notes_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -56,7 +57,7 @@ class _MyHomePageState extends State<MyHomePage> {
             });
           },
           children: [
-            Container(color: Colors.yellow),
+            const NotesScreen(),
             Container(color: Colors.white),
             Container(color: Colors.black)
           ],
