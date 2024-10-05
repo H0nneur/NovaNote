@@ -17,7 +17,11 @@ class _NotesScreenState extends State<NotesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Notes")),
+      appBar: AppBar(
+        title: const Text("Notes"),
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 22),
+        backgroundColor: Colors.indigo.shade900,
+      ),
       body: ListView.builder(
           padding: const EdgeInsets.all(16.0),
           itemCount: notes.length,
