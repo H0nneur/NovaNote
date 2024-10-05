@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:novanote/constant_widgets.dart';
 
 class EditScreen extends StatefulWidget {
   const EditScreen({super.key});
@@ -11,6 +10,21 @@ class EditScreen extends StatefulWidget {
 class _EditScreenState extends State<EditScreen> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(appBar: novaNoteAppBar("Edit note"));
+    return Scaffold(
+        appBar: AppBar(
+            title: const Text("Edit note"),
+            titleTextStyle: const TextStyle(color: Colors.white, fontSize: 22),
+            backgroundColor: Colors.blue.shade900,
+            actions: [
+          IconButton(
+              onPressed: () {
+                //TODO: Save the note
+                Navigator.pop(context);
+              },
+              icon: const Icon(
+                Icons.save_rounded,
+                color: Colors.white,
+              ))
+        ]));
   }
 }
