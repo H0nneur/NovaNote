@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:novanote/constant_widgets.dart';
+import 'package:novanote/edit_screen.dart';
 
 class NotesScreen extends StatefulWidget {
   const NotesScreen({super.key});
@@ -17,10 +19,13 @@ class _NotesScreenState extends State<NotesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Notes"),
-        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 22),
-        backgroundColor: Colors.indigo.shade900,
+      appBar: novaNoteAppBar,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).push(
+              MaterialPageRoute(builder: (contect) => const EditScreen()));
+        },
+        child: const Icon(Icons.add),
       ),
       body: ListView.builder(
           padding: const EdgeInsets.all(16.0),
