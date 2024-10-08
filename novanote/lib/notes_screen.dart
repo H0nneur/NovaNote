@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:novanote/constant_widgets.dart';
+import 'package:novanote/edit_screen.dart';
 import 'package:novanote/note_detail_screen.dart';
 
 class NotesScreen extends StatefulWidget {
@@ -22,8 +23,8 @@ class _NotesScreenState extends State<NotesScreen> {
       appBar: novaNoteAppBar("Notes"),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.of(context).push(MaterialPageRoute(
-              builder: (contect) => const NoteDetailScreen()));
+          Navigator.of(context).push(
+              MaterialPageRoute(builder: (contect) => const EditScreen()));
         },
         child: const Icon(Icons.add),
       ),
