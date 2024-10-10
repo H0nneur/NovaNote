@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:novanote/edit_screen.dart';
+import 'package:novanote/screens/edit_screen.dart';
 
 class NoteDetailScreen extends StatelessWidget {
   const NoteDetailScreen({super.key});
