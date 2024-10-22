@@ -1,84 +1,188 @@
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'package:novanote/models/category.dart';
+import 'package:novanote/models/note.dart';
 import 'package:sqflite/sqflite.dart';
-
-import '../model/note.dart';
+import 'package:path/path.dart';
 
 class DatabaseHelper {
-  static late DatabaseHelper _databaseHelper; // Singleton DatabaseHelper
-  static late Database _database; // Singleton Database
+  static final DatabaseHelper _instance = DatabaseHelper._internal();
+  static Database? _database;
 
-  String notesTable = "notes_table";
-  String colId = "id";
-  String colTitle = "title";
-  String colPriority = "priority";
-  String colContent = "content";
-  String colSecret = "secret";
-  String colDate = "date";
+  factory DatabaseHelper() => _instance;
 
-  DatabaseHelper._createInstance(); // Named constructor to create instance of DatabaseHelper
-
-  factory DatabaseHelper() {
-    _databaseHelper ??= DatabaseHelper._createInstance();
-    return _databaseHelper;
-  }
+  DatabaseHelper._internal();
 
   Future<Database> get database async {
-    _database ??= await initializeDatabase();
-    return _database;
+    if (_database != null) return _database!;
+    _database = await _initDatabase();
+    return _database!;
   }
 
-  Future<Database> initializeDatabase() async {
-    Directory directory = await getApplicationDocumentsDirectory();
-    String path = "${directory.path}notes.db";
-    // Open/create the database at a given path
-    var notesDatabase =
-        await openDatabase(path, version: 1, onCreate: _createDb);
-    return notesDatabase;
+  Future<Database> _initDatabase() async {
+    String path = join(await getDatabasesPath(), 'notes_database.db');
+    return await openDatabase(
+      path,
+      version: 1,
+      onCreate: _onCreate,
+    );
   }
 
-  void _createDb(Database db, int newVersion) async {
-    await db.execute(
-        "CREATE TABLE $notesTable($colId INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "$colTitle TEXT, $colPriority INTEGER, $colContent TEXT, $colSecret INTEGER, $colDate TEXT)");
+  Future<void> _onCreate(Database db, int version) async {
+    // Create categories table
+    await db.execute('''
+      CREATE TABLE categories(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT
+      )
+    ''');
+
+    // Create notes table
+    await db.execute('''
+      CREATE TABLE notes(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        category_id INTEGER,
+        is_important INTEGER NOT NULL DEFAULT 0,
+        is_favorite INTEGER NOT NULL DEFAULT 0,
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        is_locked INTEGER NOT NULL DEFAULT 0,
+        password TEXT,
+        created_at TEXT NOT NULL,
+        modified_at TEXT NOT NULL,
+        attachments TEXT,
+        FOREIGN KEY (category_id) REFERENCES categories (id)
+      )
+    ''');
   }
 
-  // Fetch operation: Get all note map objects from the database
-  Future<List<Map<String, dynamic>>> getNoteMapList() async {
-    Database db = await database;
-    var result = await db.query(notesTable, orderBy: "$colPriority ASC");
-    return result;
-  }
-
-  // Insert operation: Insert a note object to the database
+  // CRUD operations for notes
   Future<int> insertNote(Note note) async {
-    Database db = await database;
-    var result = await db.insert(notesTable, note.toMap());
-    return result;
+    final db = await database;
+    return await db.insert('notes', note.toMap());
   }
 
-  //Update operation: Update a note object and save it to the database
   Future<int> updateNote(Note note) async {
-    Database db = await database;
-    var result = await db.update(notesTable, note.toMap(),
-        where: "$colId = ?", whereArgs: [note.id]);
-    return result;
+    final db = await database;
+    return await db.update(
+      'notes',
+      note.toMap(),
+      where: 'id = ?',
+      whereArgs: [note.id],
+    );
   }
 
-  //Delete operation: Delete a note object from the database
-  Future<int> deleteNote(Note note) async {
-    Database db = await database;
-    var result =
-        await db.delete(notesTable, where: "$colId = ?", whereArgs: [note.id]);
-    return result;
+  Future<int> deleteNote(int id) async {
+    final db = await database;
+    return await db.delete(
+      'notes',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
-  // Get number of note objects in the database
-  Future<int> getCount() async {
-    Database db = await database;
-    List<Map<String, dynamic>> numberResult =
-        await db.rawQuery("SELECT COUNT(*) FROM $notesTable");
-    int result = Sqflite.firstIntValue(numberResult) ?? 0;
-    return result;
+  Future<List<Note>> getNotes({
+    String? search,
+    int? categoryId,
+    bool? isFavorite,
+    bool? isArchived,
+    String sortBy = 'modified_at',
+    bool ascending = false,
+  }) async {
+    final db = await database;
+
+    String whereClause = '1=1';
+    List<dynamic> whereArgs = [];
+
+    if (search != null) {
+      whereClause += ' AND (title LIKE ? OR content LIKE ?)';
+      whereArgs.add('%$search%');
+      whereArgs.add('%$search%');
+    }
+
+    if (categoryId != null) {
+      whereClause += ' AND category_id = ?';
+      whereArgs.add(categoryId);
+    }
+
+    if (isFavorite != null) {
+      whereClause += ' AND is_favorite = ?';
+      whereArgs.add(isFavorite ? 1 : 0);
+    }
+
+    if (isArchived != null) {
+      whereClause += ' AND is_archived = ?';
+      whereArgs.add(isArchived ? 1 : 0);
+    }
+
+    final List<Map<String, dynamic>> maps = await db.query(
+      'notes',
+      where: whereClause,
+      whereArgs: whereArgs,
+      orderBy: '$sortBy ${ascending ? 'ASC' : 'DESC'}',
+    );
+
+    return List.generate(maps.length, (i) => Note.fromMap(maps[i]));
+  }
+
+  // CRUD operations for categories
+  Future<int> insertCategory(Category category) async {
+    final db = await database;
+    return await db.insert('categories', category.toMap());
+  }
+
+  Future<List<Category>> getCategories() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query('categories');
+    return List.generate(maps.length, (i) => Category.fromMap(maps[i]));
+  }
+
+  Future<bool> categoryHasNotes(int categoryId) async {
+    final db = await database;
+    final result = await db.query(
+      'notes',
+      where: 'category_id = ?',
+      whereArgs: [categoryId],
+      limit: 1,
+    );
+    return result.isNotEmpty;
+  }
+
+  Future<int> updateCategory(Category category) async {
+    final db = await database;
+    return await db.update(
+      'categories',
+      category.toMap(),
+      where: 'id = ?',
+      whereArgs: [category.id],
+    );
+  }
+
+  Future<int> deleteCategory(int id) async {
+    final db = await database;
+    return await db.delete(
+      'categories',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<List<Note>> getArchivedNotes() async {
+    return getNotes(isArchived: true);
+  }
+
+  Future<void> toggleArchiveNote(int id, bool archive) async {
+    final db = await database;
+    await db.update(
+      'notes',
+      {'is_archived': archive ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // Add methods for handling favorite notes
+  Future<List<Note>> getFavoriteNotes() async {
+    return getNotes(isFavorite: true);
   }
 }
