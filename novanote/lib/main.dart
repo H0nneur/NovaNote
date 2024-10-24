@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:novanote/screens/category_screen.dart';
 import 'package:novanote/screens/note_list_screen.dart';
+import 'package:novanote/screens/setting_screen.dart';
 import 'package:novanote/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -19,11 +21,17 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Note App',
+      title: 'NovaNote',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: darkMode ? ThemeMode.dark : ThemeMode.light,
-      home: NoteListScreen(),
+      debugShowCheckedModeBanner: false,
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const NoteListScreen(),
+        '/settings': (context) => SettingsScreen(),
+        '/categories': (context) => const CategoryScreen(),
+      },
     );
   }
 }

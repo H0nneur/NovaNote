@@ -1,8 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:novanote/models/note.dart';
+import 'package:novanote/screens/category_screen.dart';
+import 'package:novanote/screens/edit_screen.dart';
+import 'package:novanote/screens/setting_screen.dart';
 import 'package:novanote/util/database_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class NoteListScreen extends StatefulWidget {
+  final bool showArchived;
+
+  const NoteListScreen({
+    super.key,
+    this.showArchived = false,
+  });
+
   @override
   _NoteListScreenState createState() => _NoteListScreenState();
 }
@@ -43,23 +54,107 @@ class _NoteListScreenState extends State<NoteListScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              decoration: const InputDecoration(
-                hintText: 'Search notes...',
-                prefixIcon: Icon(Icons.search),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor,
               ),
-              onChanged: (value) {
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    'NovaNote',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Organize your thoughts',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.note),
+              title: const Text('All Notes'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
                 setState(() {
-                  _searchQuery = value;
+                  // Reset filters
+                  _searchQuery = '';
                   _loadNotes();
                 });
               },
             ),
-          ),
+            ListTile(
+              leading: const Icon(Icons.favorite),
+              title: const Text('Favorites'),
+              onTap: () async {
+                Navigator.pop(context);
+                final notes = await _dbHelper.getNotes(isFavorite: true);
+                setState(() {
+                  _notes = notes;
+                });
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.archive),
+              title: const Text('Archive'),
+              onTap: () async {
+                Navigator.pop(context);
+                final notes = await _dbHelper.getNotes(isArchived: true);
+                setState(() {
+                  _notes = notes;
+                });
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.folder),
+              title: const Text('Categories'),
+              onTap: () async {
+                Navigator.pop(context);
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CategoryScreen(),
+                  ),
+                );
+                // Reload notes in case categories were modified
+                _loadNotes();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text('Settings'),
+              onTap: () async {
+                Navigator.pop(context);
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SettingsScreen(),
+                  ),
+                );
+                // Reload settings
+                _loadSettings();
+              },
+            ),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          // ... (previous search bar implementation)
           Expanded(
             child: ListView.builder(
               itemCount: _notes.length,
@@ -76,9 +171,15 @@ class _NoteListScreenState extends State<NoteListScreen> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  trailing: note.isFavorite
-                      ? const Icon(Icons.star, color: Colors.yellow)
-                      : null,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (note.isFavorite)
+                        const Icon(Icons.star, color: Colors.yellow),
+                      if (note.attachments.isNotEmpty)
+                        const Icon(Icons.attach_file),
+                    ],
+                  ),
                   onTap: () => _openNote(note),
                 );
               },
@@ -128,16 +229,43 @@ class _NoteListScreenState extends State<NoteListScreen> {
   }
 
   Future<void> _createNewNote() async {
-    // Navigate to note editor screen
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const NoteEditorScreen(),
+      ),
+    );
+
+    if (result == true) {
+      _loadNotes();
+    }
   }
 
   Future<void> _openNote(Note note) async {
     if (note.isLocked) {
-      // Show password dialog
       bool authenticated = await _authenticateNote(note);
       if (!authenticated) return;
     }
-    // Navigate to note editor screen with note data
+
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NoteEditorScreen(note: note),
+      ),
+    );
+
+    if (result == true) {
+      _loadNotes();
+    }
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _sortBy = prefs.getString('defaultSortBy') ?? 'modified_at';
+      _ascending = prefs.getBool('sortAscending') ?? false;
+    });
+    _loadNotes();
   }
 
   Future<bool> _authenticateNote(Note note) async {
